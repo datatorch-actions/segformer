@@ -14,7 +14,7 @@ DataTorch action. Currently used for internal evaluation only.
 ## Quick Start
 
 ```yaml
-name: DEXTR
+name: Segformer
 
 triggers:
   # Adds a button to the annotator.
