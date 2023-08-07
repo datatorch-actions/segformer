@@ -94,6 +94,8 @@ def call_model(path: str, points: List[Point], address: str) -> List[List[Point]
     print(f"Container Path = {container_path}")
     print(f"Points = {points}")
 
+    if not points:
+        points = []
     response = requests.post(address, json={"path": container_path, "points": points})
     json = response.json()
     return json["polygons"]
@@ -127,7 +129,7 @@ def send_request():
     attempts = 0
 
     start_server(address.port or 80)
-    time.sleep(30)
+    time.sleep(20)
 
     while True:
         try:
@@ -180,7 +182,7 @@ def send_request():
                 break
             print(f"Attempt {attempts}: Could not connect to model.")
             start_server(address.port or 80)
-            time.sleep(60)
+            time.sleep(20)
 
     print("Could not send request.")
     exit(1)

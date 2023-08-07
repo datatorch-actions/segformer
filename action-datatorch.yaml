@@ -9,7 +9,7 @@ inputs:
     description: Absolute path to image
   points:
     type: array
-    required: true
+    required: false
     description: >
       4 points marking the most left, right, bottom and top points of the shape. Not used for now
   url:
