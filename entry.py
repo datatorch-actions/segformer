@@ -134,14 +134,14 @@ def send_request():
     attempts = 0
 
     start_server(address.port or 80)
-    time.sleep(20)
+    time.sleep(30)
 
     while True:
         try:
             attempts += 1
-            print(f"Attempt {attempts}: Request to Segformer Server")
+            print(f"Attempt {attempts}: Request to Segformer Server", flush=True)
             segments = call_model(image_path, points, address.geturl())
-            print("segments", segments)
+            print("segments", segments, flush=True)
             print(len(segments))
             for seg in segments:
                 if simplify == 0:
@@ -154,7 +154,6 @@ def send_request():
 
                 output_seg = remove_polygons_with_2_points(input_seg)
                 set_output("polygons", output_seg)
-                print(f"Annotation ID: {annotation_id}")
                 s = Segmentations()
                 if not annotation_id:
                     annotation = Annotation()
@@ -163,6 +162,7 @@ def send_request():
                     annotation.create(ApiClient())
                     annotation_id = annotation.id
 
+                print(f"Annotation ID: {annotation_id}", flush=True)
                 s.annotation_id = annotation_id
 
                 try:
@@ -197,7 +197,7 @@ def send_request():
                 break
             print(f"Attempt {attempts}: Could not connect to model.")
             start_server(address.port or 80)
-            time.sleep(20)
+            time.sleep(30)
 
     print("Could not send request.")
     exit(1)
