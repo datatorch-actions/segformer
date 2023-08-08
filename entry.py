@@ -159,7 +159,7 @@ def send_request():
                 if not annotation_id:
                     annotation = Annotation()
                     annotation.label_id = label_id
-                    annotation.file_id = label_id
+                    annotation.file_id = file_id
                     annotation.create(ApiClient())
 
                 s.annotation_id = annotation_id
