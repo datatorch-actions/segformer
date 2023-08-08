@@ -27,6 +27,7 @@ image_path = get_input("imagePath")
 address = urlparse(get_input("url"))
 image = get_input("image")
 annotation = get_input("annotation")
+annotation_id = None
 if annotation:
     annotation_id = annotation.get("id")
 label_id = get_input("labelId")
