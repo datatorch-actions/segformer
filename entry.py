@@ -106,7 +106,7 @@ def call_model(path: str, points: List[Point], address: str) -> List[List[Point]
     print(f"Points = {points}")
 
     response = requests.post(
-        "http://localhost:8134", json={"path": container_path, "points": points}
+        address, json={"path": container_path, "points": points}
     )
     response.raise_for_status()
     json = response.json()
