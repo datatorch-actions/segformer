@@ -1,10 +1,13 @@
 from datatorch import get_input, agent, set_output
 from datatorch.api.api import ApiClient
-from datatorch.api.entity.sources.image import Segmentations
 from datatorch.api.entity.annotation import Annotation
+from datatorch.api.entity.sources.image import Segmentations
+from datatorch.api.entity.sources.source import Source
+
 from datatorch.api.scripts.utils.simplify import simplify_points
 
 import requests
+from requests.exception import HTTPError
 import docker
 import time
 import os
@@ -15,9 +18,7 @@ from typing import List, Tuple
 from docker.models.resource import Model
 from urllib.parse import urlparse
 
-
 Point = Tuple[float, float]
-
 
 directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,6 +41,7 @@ simplify = get_input("simplify")
 
 CONTAINER_NAME = "datatorch-segformer-action"
 
+
 def return_container_status(container_name: str) -> str:
     """Get the status of a container by it's name
 
@@ -59,6 +61,7 @@ def return_container_status(container_name: str) -> str:
         container_state = container.attrs["State"]
         return container_state["Status"]
 
+
 def valid_image_path():
     if not image_path.startswith(agent_dir):
         print(f"Directory must be inside the agent folder ({agent_dir}).")
@@ -74,15 +77,18 @@ def start_server(port: int):
     # only start server if it image is not up already exist
     if return_container_status(CONTAINER_NAME) != "running":
         print(f"Creating Segformer container on port {port}.")
-        print(f"Downloading {image} docker image. This may take a few mins.", flush=True)
-        container = docker_client.containers.run(
-            image,
-            detach=True,
-            ports={"8000/tcp": port},
-            restart_policy={"Name": "always"},
-            volumes={agent_dir: {"bind": "/agent", "mode": "rw"}},
-            name=CONTAINER_NAME
+        print(
+            f"Downloading {image} docker image. This may take a few mins.", flush=True
         )
+        container = None
+        # container = docker_client.containers.run(
+        #    image,
+        #    detach=True,
+        #    ports={"8000/tcp": port},
+        #    restart_policy={"Name": "always"},
+        #    volumes={agent_dir: {"bind": "/agent", "mode": "rw"}},
+        #    name=CONTAINER_NAME,
+        # )
         if isinstance(container, Model):
             print(f"Created Segformer Container ({container.short_id}).")
     else:
@@ -99,9 +105,10 @@ def call_model(path: str, points: List[Point], address: str) -> List[List[Point]
     print(f"Container Path = {container_path}")
     print(f"Points = {points}")
 
-    if not points:
-        points = []
-    response = requests.post(address, json={"path": container_path, "points": points})
+    response = requests.post(
+        "http://localhost:8134", json={"path": container_path, "points": points}
+    )
+    response.raise_for_status()
     json = response.json()
     return json["polygons"]
 
@@ -113,7 +120,6 @@ def remove_polygons_with_2_points(path_data: List[List[Point]]):
 def combine_segmentations(
     path_data_1: List[List[Point]], path_data_2: List[List[Point]]
 ) -> List[List[Point]]:
-
     poly_1 = [geometry.Polygon(points) for points in path_data_1]
     poly_2 = [geometry.Polygon(points) for points in path_data_2]
 
@@ -122,7 +128,7 @@ def combine_segmentations(
     path_data = []
     if isinstance(multi, geometry.Polygon):
         path_data.append(list(multi.exterior.coords[:-1]))
-    
+
     if isinstance(multi, geometry.MultiPolygon):
         for polygon in multi:
             path_data.append(list(polygon.exterior.coords[:-1]))
@@ -130,7 +136,7 @@ def combine_segmentations(
     return path_data
 
 
-def send_request():
+def send_request(annotation_id=None):
     attempts = 0
 
     start_server(address.port or 80)
@@ -139,65 +145,80 @@ def send_request():
     while True:
         try:
             attempts += 1
-            print(f"Attempt {attempts}: Request to Segformer Server", flush=True)
+            print(f"Attempt {attempts}: Request to Segformer Server")
             segments = call_model(image_path, points, address.geturl())
-            print("segments", segments, flush=True)
             print(len(segments))
             for seg in segments:
                 if simplify == 0:
                     input_seg = seg
                 else:
                     input_seg = [
-                        simplify_points(polygon, tolerance=simplify, highestQuality=False)
+                        simplify_points(
+                            polygon, tolerance=simplify, highestQuality=False
+                        )
                         for polygon in seg
                     ]
 
                 output_seg = remove_polygons_with_2_points(input_seg)
                 set_output("polygons", output_seg)
-                s = Segmentations()
-                if not annotation_id:
-                    annotation = Annotation()
-                    annotation.label_id = label_id
-                    annotation.file_id = file_id
-                    annotation.create(ApiClient())
-                    annotation_id = annotation.id
+                print(f"Annotation ID: {annotation_id}")
 
-                print(f"Annotation ID: {annotation_id}", flush=True)
-                s.annotation_id = annotation_id
+                if annotation:
+                    try:
+                        s = Segmentations()
+                        s.annotation_id = annotation_id
 
-                try:
-                    existing_segmentation = next(
-                        x
-                        for x in annotation.get("sources")
-                        if x.get("type") == "PaperSegmentations"
-                    )
-                    print(
-                        f"Updating segmentation for annotation {annotation_id}", flush=True
-                    )
-                    s.id = existing_segmentation.get("id")
-                    s.path_data = combine_segmentations(
-                        output_seg,
-                        remove_polygons_with_2_points(
-                            existing_segmentation.get("pathData")
-                        ),
-                    )
-                    # exit(0)
-                    s.save(ApiClient())
-                except StopIteration:
-                    pass
+                        existing_segmentation = next(
+                            x
+                            for x in annotation.get("sources")
+                            if x.get("type") == "PaperSegmentations"
+                        )
+                        print(
+                            f"Updating segmentation for annotation {annotation_id}",
+                            flush=True,
+                        )
+                        s.id = existing_segmentation.get("id")
+                        s.path_data = combine_segmentations(
+                            output_seg,
+                            remove_polygons_with_2_points(
+                                existing_segmentation.get("pathData")
+                            ),
+                        )
+                        s.save(ApiClient())
+                    except StopIteration:
+                        if annotation_id is not None:
+                           print(
+                               f"Creating segmentation source for annotation {annotation_id}"
+                           )
+                           s.path_data = output_seg  # type: ignore
+                           s.create(ApiClient())
+                else:
+                    new_annotation = Annotation()
+                    new_annotation.label_id = label_id
+                    new_annotation.file_id = file_id
+                    new_annotation.create(ApiClient())
+                    annotation_id = new_annotation.id
+                    print(f"Creating segmentation for annotation {annotation_id}")
 
-                if annotation_id is not None:
-                    print(f"Creating segmentation source for annotation {annotation_id}")
-                    s.path_data = output_seg  # type: ignore
+                    s = Segmentations()
+                    s.annotation_id = annotation_id
+                    s.path_data = output_seg
                     s.create(ApiClient())
+                    print("Segmentation created")
+
+                    # exit(0)
+
             exit(0)
-        except Exception as ex:
-            print(ex)
+        except HTTPError as http_err:
+            print(http_err)
             if attempts > 5:
                 break
             print(f"Attempt {attempts}: Could not connect to model.")
             start_server(address.port or 80)
-            time.sleep(30)
+            time.sleep(20)
+        except Exception as ex:
+            print("Exception", ex, flush=True)
+            break
 
     print("Could not send request.")
     exit(1)
@@ -205,4 +226,4 @@ def send_request():
 
 if __name__ == "__main__":
     valid_image_path()
-    send_request()
+    send_request(annotation_id=annotation_id)
