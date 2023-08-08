@@ -7,7 +7,7 @@ from datatorch.api.entity.sources.source import Source
 from datatorch.api.scripts.utils.simplify import simplify_points
 
 import requests
-from requests.exception import HTTPError
+from requests.exceptions import HTTPError
 import docker
 import time
 import os
