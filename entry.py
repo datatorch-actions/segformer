@@ -1,7 +1,7 @@
 from datatorch import get_input, agent, set_output
 from datatorch.api.api import ApiClient
 from datatorch.api.entity.sources.image import Segmentations
-from datatorch.api.entity import Annotation
+from datatorch.api.entity.annotation import Annotation
 from datatorch.api.scripts.utils.simplify import simplify_points
 
 import requests
