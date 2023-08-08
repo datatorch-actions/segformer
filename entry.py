@@ -80,15 +80,14 @@ def start_server(port: int):
         print(
             f"Downloading {image} docker image. This may take a few mins.", flush=True
         )
-        container = None
-        # container = docker_client.containers.run(
-        #    image,
-        #    detach=True,
-        #    ports={"8000/tcp": port},
-        #    restart_policy={"Name": "always"},
-        #    volumes={agent_dir: {"bind": "/agent", "mode": "rw"}},
-        #    name=CONTAINER_NAME,
-        # )
+        container = docker_client.containers.run(
+           image,
+           detach=True,
+           ports={"8000/tcp": port},
+           restart_policy={"Name": "always"},
+           volumes={agent_dir: {"bind": "/agent", "mode": "rw"}},
+           name=CONTAINER_NAME,
+        )
         if isinstance(container, Model):
             print(f"Created Segformer Container ({container.short_id}).")
     else:
