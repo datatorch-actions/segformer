@@ -211,9 +211,9 @@ def send_request(annotation_id=None):
             exit(0)
         except HTTPError as http_err:
             print(http_err)
+            print(f"Attempt {attempts}: Could not connect to model.")
             if attempts > 5:
                 break
-            print(f"Attempt {attempts}: Could not connect to model.")
             start_server(address.port or 80)
             time.sleep(20)
         except Exception as ex:
