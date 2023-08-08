@@ -22,6 +22,12 @@ inputs:
     type: string
     default: add3000/segformer_server
     description: Docker image to spin up.
+  labelId:
+    type: string
+    default: null
+    description: >
+      Label to assign annotation to. If not provided the segmentation
+      will not be inserted.
   annotationId:
     type: string
     default: null

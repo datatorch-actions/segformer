@@ -1,6 +1,7 @@
 from datatorch import get_input, agent, set_output
 from datatorch.api.api import ApiClient
 from datatorch.api.entity.sources.image import Segmentations
+from datatorch.api.entity import Annotation
 from datatorch.api.scripts.utils.simplify import simplify_points
 
 import requests
@@ -26,7 +27,10 @@ image_path = get_input("imagePath")
 address = urlparse(get_input("url"))
 image = get_input("image")
 annotation = get_input("annotation")
-annotation_id = annotation.get("id")
+if annotation:
+    annotation_id = annotation.get("id")
+label_id = get_input("labelId")
+file_id = get_input("fileId")
 simplify = get_input("simplify")
 
 # [[10,20],[30, 40],[50,60],[70,80]]
@@ -135,46 +139,53 @@ def send_request():
         try:
             attempts += 1
             print(f"Attempt {attempts}: Request to Segformer Server")
-            seg = call_model(image_path, points, address.geturl())
-            if simplify == 0:
-                input_seg = seg
-            else:
-                input_seg = [
-                    simplify_points(polygon, tolerance=simplify, highestQuality=False)
-                    for polygon in seg
-                ]
-            output_seg = remove_polygons_with_2_points(input_seg)
-            set_output("polygons", output_seg)
-            print(f"Annotation ID: {annotation_id}")
-            s = Segmentations()
-            s.annotation_id = annotation_id
+            segments = call_model(image_path, points, address.geturl())
+            for seg in segments:
+                if simplify == 0:
+                    input_seg = seg
+                else:
+                    input_seg = [
+                        simplify_points(polygon, tolerance=simplify, highestQuality=False)
+                        for polygon in seg
+                    ]
 
-            try:
-                existing_segmentation = next(
-                    x
-                    for x in annotation.get("sources")
-                    if x.get("type") == "PaperSegmentations"
-                )
-                print(
-                    f"Updating segmentation for annotation {annotation_id}", flush=True
-                )
-                s.id = existing_segmentation.get("id")
-                s.path_data = combine_segmentations(
-                    output_seg,
-                    remove_polygons_with_2_points(
-                        existing_segmentation.get("pathData")
-                    ),
-                )
-                # exit(0)
-                s.save(ApiClient())
-                exit(0)
-            except StopIteration:
-                pass
+                output_seg = remove_polygons_with_2_points(input_seg)
+                set_output("polygons", output_seg)
+                print(f"Annotation ID: {annotation_id}")
+                s = Segmentations()
+                if not annotation_id:
+                    annotation = Annotation()
+                    annotation.label_id = label_id
+                    annotation.file_id = label_id
+                    annotation.create(ApiClient())
 
-            if annotation_id is not None:
-                print(f"Creating segmentation source for annotation {annotation_id}")
-                s.path_data = output_seg  # type: ignore
-                s.create(ApiClient())
+                s.annotation_id = annotation_id
+
+                try:
+                    existing_segmentation = next(
+                        x
+                        for x in annotation.get("sources")
+                        if x.get("type") == "PaperSegmentations"
+                    )
+                    print(
+                        f"Updating segmentation for annotation {annotation_id}", flush=True
+                    )
+                    s.id = existing_segmentation.get("id")
+                    s.path_data = combine_segmentations(
+                        output_seg,
+                        remove_polygons_with_2_points(
+                            existing_segmentation.get("pathData")
+                        ),
+                    )
+                    # exit(0)
+                    s.save(ApiClient())
+                except StopIteration:
+                    pass
+
+                if annotation_id is not None:
+                    print(f"Creating segmentation source for annotation {annotation_id}")
+                    s.path_data = output_seg  # type: ignore
+                    s.create(ApiClient())
             exit(0)
         except Exception as ex:
             print(ex)
