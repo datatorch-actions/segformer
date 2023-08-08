@@ -157,10 +157,11 @@ def send_request():
                 print(f"Annotation ID: {annotation_id}")
                 s = Segmentations()
                 if not annotation_id:
-                    annotation = Annotation()
+                    annotation = Annotation(client=ApiClient())
                     annotation.label_id = label_id
                     annotation.file_id = file_id
                     annotation.create(ApiClient())
+                    annotation_id = annotation.id
 
                 s.annotation_id = annotation_id
 
