@@ -141,6 +141,8 @@ def send_request():
             attempts += 1
             print(f"Attempt {attempts}: Request to Segformer Server")
             segments = call_model(image_path, points, address.geturl())
+            print("segments", segments)
+            print(len(segments))
             for seg in segments:
                 if simplify == 0:
                     input_seg = seg
