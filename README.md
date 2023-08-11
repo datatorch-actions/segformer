@@ -45,7 +45,7 @@ jobs:
 
           # Get the file id from action input
           fileId: ${{ event.fileId }}
-          # Get the 4 points the user clicked
+          # Get the 2 points the user clicked
           # points: ${{ event.flowData.points }}
 
           # Annotation created by the four points. We will insert the
