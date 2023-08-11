@@ -13,16 +13,18 @@ DataTorch action. Currently used for internal evaluation only.
 
 ## Quick Start
 
+
+
 ```yaml
 name: Segformer
 
 triggers:
   # Adds a button to the annotator.
   annotatorButton:
-    name: "Segformer"
+    name: "DEXTR"
     icon: brain
-    # Annotator will prompt the user for 4 points before triggering the pipeline
-    flow: 4-points
+    flow: whole-file
+  # flow: 2-points
 
 jobs:
   predict:
@@ -36,12 +38,16 @@ jobs:
           name: ${{ event.fileName }}
 
       - name: Predict Segmentation
-        action: aoxolotl/segformer_action
+        action: aoxolotl/segformer_action@betterAPI
         inputs:
           # Download file path from the previous action.
           imagePath: ${{ variable.path }}
+
+          # Get the file id from action input
+          fileId: ${{ event.fileId }}
           # Get the 4 points the user clicked
-          points: ${{ event.flowData.points }}
+          # points: ${{ event.flowData.points }}
+
           # Annotation created by the four points. We will insert the
           # segmentation into this annotation
           annotationId: ${{ event.annotationId }}
