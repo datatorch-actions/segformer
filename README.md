@@ -21,7 +21,7 @@ name: Segformer
 triggers:
   # Adds a button to the annotator.
   annotatorButton:
-    name: "DEXTR"
+    name: "Segformer Whole File"
     icon: brain
     flow: whole-file
   # flow: 2-points
