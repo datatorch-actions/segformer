@@ -74,25 +74,37 @@ def valid_image_path():
 
 def start_server(port: int):
     docker_client = docker.from_env()
-    # only start server if it image is not up already exist
-    if return_container_status(CONTAINER_NAME) != "running":
-        print(f"Creating Segformer container on port {port}.")
-        print(
-            f"Downloading {image} docker image. This may take a few mins.", flush=True
-        )
-        container = docker_client.containers.run(
-           image,
-           detach=True,
-           ports={"8000/tcp": port},
-           restart_policy={"Name": "always"},
-           volumes={agent_dir: {"bind": "/agent", "mode": "rw"}},
-           name=CONTAINER_NAME,
-        )
-        if isinstance(container, Model):
-            print(f"Created Segformer Container ({container.short_id}).")
-    else:
-        print(f"Container {CONTAINER_NAME} already running")
-        print(f"Sleeping to wait for server bring up")
+    try:
+        # Check if the container exists
+        container = docker_client.containers.get(CONTAINER_NAME)
+        if container.status == "running":
+            print(f"Container {CONTAINER_NAME} already running on port {port}")
+            return
+        elif container.status == "exited":
+            print(f"Restarting existing container {CONTAINER_NAME}.")
+            container.start()
+            return
+        else:
+            print(f"Container {CONTAINER_NAME} exists but is in state: {container.status}. Removing and recreating it.")
+            container.remove(force=True)
+    except docker.errors.NotFound:
+        print(f"No existing container found with name {CONTAINER_NAME}. Creating a new one.")
+
+    # Create and run the container if it does not exist or was removed
+    print(f"Creating Segformer container on port {port}.")
+    print(
+        f"Downloading {image} docker image. This may take a few mins.", flush=True
+    )
+    container = docker_client.containers.run(
+        image,
+        detach=True,
+        ports={"8000/tcp": port},
+        restart_policy={"Name": "always"},
+        volumes={agent_dir: {"bind": "/agent", "mode": "rw"}},
+        name=CONTAINER_NAME,
+    )
+    if isinstance(container, Model):
+        print(f"Created Segformer Container ({container.short_id}).")
 
 
 def call_model(path: str, points: List[Point], address: str) -> List[List[Point]]:
